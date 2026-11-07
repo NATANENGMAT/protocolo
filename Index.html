@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#090f1e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Protocolo • Painel pessoal</title>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.7.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<style>
+:root{
+ --bg:#090f1e;--surface:#111b2e;--surface2:#17243a;--line:#263650;
+ --text:#edf4ff;--muted:#91a3bd;--blue:#6ea8ff;--cyan:#55d6d0;
+ --green:#47d7a0;--amber:#ffc66e;--red:#ff7888;--purple:#b69aff;
+ --radius:20px;--shadow:0 16px 40px rgba(0,0,0,.22)
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:radial-gradient(ellipse at 15% -10%,#1b3760 0,transparent 38%),var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:0 0 calc(100px + env(safe-area-inset-bottom));}
+button,input,select{font:inherit}
+button{border:0;cursor:pointer}
+#login{position:fixed;inset:0;z-index:100;background:radial-gradient(ellipse at 50% 0,#1c3b68,var(--bg) 65%);display:flex;flex-direction:column;justify-content:center;padding:28px}
+#login.hide,.hide{display:none!important}
+.login-mark{width:58px;height:58px;border-radius:18px;display:grid;place-items:center;background:linear-gradient(135deg,var(--blue),var(--purple));font-size:27px;box-shadow:0 12px 30px #477ed455;margin-bottom:20px}
+h1{font-size:25px;letter-spacing:-.7px;margin:0;font-weight:800}
+.sub{color:var(--muted);font-size:13px;margin:5px 0 0}
+.wrap{max-width:760px;margin:auto;padding:22px 16px 20px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px}
+.eyebrow{color:var(--cyan);font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px}
+.date{color:var(--muted);font-size:13px;margin-top:4px;text-transform:capitalize}
+.avatar{width:44px;height:44px;flex:none;border:1px solid #49618a;border-radius:15px;background:linear-gradient(135deg,#244a78,#4a3e77);display:grid;place-items:center;font-size:20px}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;padding:6px;background:#0d1728;border:1px solid var(--line);border-radius:16px;margin-bottom:17px}
+.tabs button{background:transparent;color:var(--muted);padding:11px 5px;border-radius:11px;font-size:13px;font-weight:700}
+.tabs button.on{background:linear-gradient(135deg,#2b5b9c,#4c5d9d);color:white;box-shadow:0 5px 16px #244b8444}
+.card{background:linear-gradient(145deg,rgba(23,36,58,.97),rgba(16,27,45,.97));border:1px solid var(--line);border-radius:var(--radius);padding:17px;margin-bottom:13px;box-shadow:var(--shadow)}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.card h2{font-size:14px;letter-spacing:.2px;margin:0;font-weight:800}
+.kicker{font-size:11px;color:var(--muted);margin-top:3px}
+.icon{width:36px;height:36px;display:grid;place-items:center;border-radius:12px;background:#263b59;font-size:17px;flex:none}
+.hero{background:linear-gradient(125deg,#1c4676,#394879 58%,#57427e);border:1px solid #5674a5;border-radius:24px;padding:19px;margin-bottom:13px;box-shadow:0 18px 40px #142b4c66}
+.hero-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.hero-label{font-size:12px;color:#d2e4ff;font-weight:700}
+.hero-date{font-size:11px;color:#c1d3ed}
+.hero-bottom{display:flex;align-items:end;justify-content:space-between;margin-top:20px;gap:15px}
+.hero-number{font-size:36px;font-weight:850;letter-spacing:-1.5px;line-height:1}
+.hero-caption{font-size:12px;color:#d4e2f6;margin-top:6px}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:30px;padding:7px 10px;background:#ffffff18;color:#eff6ff;font-size:11px;font-weight:750}
+.progress{height:7px;background:#ffffff25;border-radius:20px;overflow:hidden;margin-top:15px}
+.progress>span{display:block;height:100%;width:0;background:linear-gradient(90deg,#65e2ca,#c2f5dc);border-radius:20px;transition:width .35s}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.metric{background:#0d1829;border:1px solid #263750;border-radius:16px;padding:13px;min-width:0}
+.metric-label{font-size:11px;color:var(--muted);font-weight:700}
+.metric-value{font-size:22px;font-weight:800;letter-spacing:-.5px;margin-top:7px;overflow-wrap:anywhere}
+.metric-note{font-size:11px;color:var(--muted);margin-top:2px}
+label{display:block;color:var(--muted);font-size:12px;font-weight:650;margin:12px 0 6px}
+input,select,textarea{width:100%;padding:12px 13px;border-radius:12px;border:1px solid #354967;background:#0b1525;color:var(--text);font-size:15px;outline:none;min-height:46px}
+input:focus,select:focus{border-color:var(--blue);box-shadow:0 0 0 3px #6ea8ff20}
+input[type=checkbox]{width:20px;height:20px;min-height:20px;accent-color:#65b5ff;flex:none}
+input[type=file]{font-size:12px;padding:10px}
+.row{display:flex;gap:9px;flex-wrap:wrap}.row>*{flex:1;min-width:0}
+.btn{padding:12px 15px;border-radius:12px;background:linear-gradient(135deg,#347bd0,#5269bf);color:white;font-size:13px;font-weight:800;box-shadow:0 7px 18px #2859a333}
+.btn.secondary{background:#263953;color:#dce9fb;box-shadow:none;border:1px solid #3a506e}
+.btn.ghost{background:transparent;color:var(--blue);box-shadow:none;border:1px solid #3c5e88}
+.btn.danger{background:#632d3b;color:#ffdce1;box-shadow:none}
+.btn:active{transform:scale(.98)}
+.check-list{display:grid;gap:8px}
+.check-item{display:flex;align-items:center;gap:11px;padding:12px;background:#0d1829;border:1px solid #293b55;border-radius:13px}
+.check-item span{font-size:13px;font-weight:650;flex:1}
+.check-item small{display:block;color:var(--muted);font-weight:400;font-size:11px;margin-top:2px}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#64748b}
+.status-dot.done{background:var(--green);box-shadow:0 0 10px #47d7a088}
+.info{border:1px solid #344c6d;background:#14243a;color:#c6d8f0;padding:12px;border-radius:13px;font-size:12px;line-height:1.5}
+.info strong{color:white}
+.list{list-style:none;padding:0;margin:0}
+.list li{padding:10px 0;border-bottom:1px solid #26364e;font-size:13px;display:flex;justify-content:space-between;gap:10px}
+.list li:last-child{border:0}
+.chart{width:100%;height:auto;display:block;background:#0c1727;border:1px solid #293b55;border-radius:14px}
+.chart-wrap{margin:16px 0;background:#0c1727;border:1px solid #293b55;border-radius:14px;padding:10px}
+.chart-title{font-size:12px;font-weight:750;margin-bottom:7px;display:flex;justify-content:space-between}
+#canvas{width:100%;max-width:300px;border-radius:14px;margin-top:12px}
+.mono{white-space:pre-wrap;background:#0b1525;border:1px solid #30425c;padding:13px;border-radius:13px;font:12px/1.55 ui-monospace,monospace;overflow:auto}
+#rodape{position:fixed;z-index:150;bottom:calc(12px + env(safe-area-inset-bottom));left:50%;transform:translate(-50%,150%);background:#e8f1ff;color:#102039;padding:11px 17px;border-radius:30px;font-size:12px;font-weight:800;box-shadow:0 10px 35px #0008;transition:transform .25s;max-width:90%;text-align:center}
+#rodape.show{transform:translate(-50%,0)}
+.bottom-note{text-align:center;color:#657995;font-size:10px;padding:12px 20px}
+.section-title{font-size:11px;color:var(--muted);font-weight:850;text-transform:uppercase;letter-spacing:1.2px;margin:18px 2px 9px}
+@media(min-width:600px){.wrap{padding:30px 24px}.card{padding:20px}.hero{padding:23px}.hero-number{font-size:42px}}
+</style>
+</head>
+<body>
+<div id="login">
+  <div class="login-mark">✦</div>
+  <div class="eyebrow">Área pessoal</div>
+  <h1>Seu protocolo</h1>
+  <p class="sub" style="margin-bottom:22px">Acompanhe seus registros em um só lugar.</p>
+  <label>Login</label><input id="lgUser" inputmode="numeric" autocomplete="username" placeholder="Seu login">
+  <label>Senha</label><input id="lgPass" type="password" autocomplete="current-password" placeholder="Sua senha">
+  <button class="btn" style="margin-top:18px;width:100%" onclick="entrar()">Entrar <span aria-hidden="true">→</span></button>
+  <p id="lgErro" style="color:var(--red);font-size:12px"></p>
+</div>
+
+<div id="app" class="hide">
+<div class="wrap">
+<header>
+ <div><div class="eyebrow">Painel pessoal</div><h1>Protocolo</h1><div class="date" id="dataHoje"></div></div>
+ <div class="avatar">✦</div>
+</header>
+<nav class="tabs">
+ <button class="on" onclick="aba('dia',this)">☀️ Hoje</button>
+ <button onclick="aba('hist',this)">▥ Histórico</button>
+ <button onclick="aba('aj',this)">⚙️ Ajustes</button>
+</nav>
+
+<section id="abaDia">
+ <div class="hero">
+  <div class="hero-top"><div class="hero-label">RESUMO DOS REGISTROS</div><span class="pill">● Diário</span></div>
+  <div class="hero-bottom"><div><div class="hero-number" id="progressoHoje">0%</div><div class="hero-caption">itens registrados hoje</div></div><div class="hero-date" id="dataHero"></div></div>
+  <div class="progress"><span id="barraNota"></span></div>
+ </div>
+ <div class="grid2" style="margin-bottom:13px">
+  <div class="metric"><div class="metric-label">⚖️ PESO</div><div class="metric-value" id="miniPeso">—</div><div class="metric-note">registro de hoje</div></div>
+  <div class="metric"><div class="metric-label">🩺 PRESSÃO</div><div class="metric-value" id="miniPressao">—</div><div class="metric-note">mmHg</div></div>
+  <div class="metric"><div class="metric-label">💧 POTÁSSIO</div><div class="metric-value" id="miniPot">—</div><div class="metric-note">mg registrados</div></div>
+  <div class="metric"><div class="metric-label">🏃 CARDIO</div><div class="metric-value" id="miniCardio">—</div><div class="metric-note">atividade registrada</div></div>
+ </div>
+
+ <div class="card">
+  <div class="card-head"><div><h2>⚖️ Peso e pressão</h2><div class="kicker">Registre suas medidas</div></div><div class="icon">🩺</div></div>
+  <div class="grid2">
+   <div><label>Peso (kg)</label><input id="peso" type="number" step="0.1" inputmode="decimal" placeholder="Ex.: 85,5"></div>
+   <div><label>Potássio (mg)</label><input id="potassio" type="number" inputmode="numeric" placeholder="Quantidade"></div>
+   <div><div class="section-title">Sistólica</div><input id="sis" type="number" inputmode="numeric" placeholder="Ex.: 120"></div>
+   <div><div class="section-title">Diastólica</div><input id="dia" type="number" inputmode="numeric" placeholder="Ex.: 80"></div>
+  </div>
+  <button class="btn" style="width:100%;margin-top:14px" onclick="salvarVitais()">Salvar medidas</button>
+  <p class="sub" id="pesoMedia"></p>
+ </div>
+
+ <div class="card">
+  <div class="card-head"><div><h2>💧 Água Diária</h2><div class="kicker">Meta: 5000 ml</div></div><div class="icon">🚰</div></div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:10px">
+    <div><div style="font-size:28px;font-weight:800" id="aguaNum">0 <span style="font-size:14px;color:var(--muted)">ml</span></div></div>
+    <div style="font-size:12px;color:var(--muted);text-align:right" id="aguaFalta">Faltam 5000 ml</div>
+  </div>
+  <div class="progress" style="height:10px;background:#0d1829;border:1px solid #263750"><span id="barraAgua" style="width:0%;background:linear-gradient(90deg,#6ea8ff,#55d6d0)"></span></div>
+  
+  <div class="row" style="margin-top:14px">
+    <button class="btn" onclick="addAgua(300)">+ 300 ml</button>
+    <button class="btn secondary" onclick="resetarAgua()">Zerar</button>
+  </div>
+  <button class="btn ghost" style="width:100%;margin-top:8px;font-size:12px" onclick="ativarLembretes()">🔔 Ativar Lembretes (a cada 2h)</button>
+  <p class="sub" id="lembreteStatus" style="text-align:center;margin-top:6px">Lembretes desativados</p>
+ </div>
+
+ <div class="card">
+  <div class="card-head"><div><h2>💊 Registro de medicamentos</h2><div class="kicker">Marque apenas o que aconteceu</div></div><div class="icon">＋</div></div>
+  <div id="remedios" class="check-list"></div>
+ </div>
+
+ <div class="card">
+  <div class="card-head"><div><h2>🥑 Potássio alimentar</h2><div class="kicker">Valor informado no MyFitnessPal</div></div><div class="icon">◉</div></div>
+  <div id="potassioInfo" class="info">Informe o total consumido no campo acima e salve suas medidas.</div>
+ </div>
+
+ <div class="card">
+  <div class="card-head"><div><h2>🏃 Cardio</h2><div class="kicker">Atividade realizada no dia</div></div><div class="icon">↗</div></div>
+  <div class="row"><button class="btn secondary" onclick="registrarCardio('hiit')">⚡ HIIT</button><button class="btn secondary" onclick="registrarCardio('ladeira')">⛰️ Ladeira</button><button class="btn secondary" onclick="registrarCardio('sem')">— Sem cardio</button></div>
+  <div class="grid2" style="margin-top:8px"><div><label>Horário</label><select id="cardioHora"><option value="">Selecionar</option><option>manhã</option><option>tarde</option><option>noite</option></select></div><div><label>Em jejum?</label><select id="cardioJejum"><option value="">Selecionar</option><option value="sim">Sim</option><option value="nao">Não</option></select></div></div>
+  <label>Motivo (se não fez cardio)</label><select id="cardioMotivo"><option value="">Selecionar</option><option>tempo</option><option>lesão</option><option>descanso</option><option>doença</option><option>outro</option></select>
+  <p class="sub" id="cardioInfo"></p>
+ </div>
+
+ <div class="card">
+  <div class="card-head"><div><h2>📷 Foto de acompanhamento</h2><div class="kicker">Registro visual pessoal</div></div><div class="icon">◎</div></div>
+  <input type="file" id="foto" accept="image/*" capture="user" onchange="carregarFoto(event)">
+  <canvas id="canvas" class="hide" width="300" height="300"></canvas>
+  <p class="sub" id="fotoResultado">A foto não será enviada para nenhum servidor.</p>
+ </div>
+
+ <div class="card">
+  <div class="card-head"><div><h2>📋 Relatório diário</h2><div class="kicker">Resumo para consulta pessoal</div></div><div class="icon">▤</div></div>
+  <div class="row"><button class="btn" onclick="gerarRelatorio()">Gerar relatório</button><button class="btn secondary" onclick="copiarRelatorio()">Copiar</button></div>
+  <div class="mono hide" id="relatorio" style="margin-top:12px"></div>
+ </div>
+ <div class="bottom-note">Os registros são armazenados neste dispositivo.</div>
+</section>
+
+<section id="abaHist" class="hide">
+ <div class="card">
+  <div class="card-head"><div><h2>📈 Evolução do peso</h2><div class="kicker">Últimos 14 registros disponíveis</div></div><div class="icon">↗</div></div>
+  <canvas id="grafPeso" class="chart" width="700" height="260"></canvas>
+ </div>
+ <div class="card">
+  <div class="card-head"><div><h2>💊 Empilhamento (Meia-vida)</h2><div class="kicker">Nível acumulado de cada medicamento no corpo</div></div><div class="icon">▥</div></div>
+  <div id="graficosEmpilhamento"></div>
+ </div>
+ <div class="card">
+  <div class="card-head"><div><h2>🗓️ Diário</h2><div class="kicker">Últimos 14 dias</div></div><div class="icon">☷</div></div>
+  <div id="historico"></div>
+ </div>
+</section>
+
+<section id="abaAj" class="hide">
+ <div class="card">
+  <div class="card-head"><div><h2>💉 Aplicação de Durateston</h2><div class="kicker">Data informada por você</div></div><div class="icon">◷</div></div>
+  <label>Data da última aplicação</label><input type="date" id="ultimaDura" onchange="salvarDura()">
+  <p class="sub" id="duraInfo"></p>
+  <div class="info">O aplicativo apenas guarda a data informada. Não calcula nem recomenda a próxima aplicação.</div>
+ </div>
+ 
+ <div class="card">
+  <div class="card-head"><div><h2>⚡ Atalhos de Preenchimento</h2><div class="kicker">Alimente o gráfico de empilhamento</div></div><div class="icon">✨</div></div>
+  <p class="sub" style="margin-bottom:12px">Use o botão abaixo para marcar automaticamente a Trembolona nos últimos 14 dias, preenchendo a curva do gráfico de acúmulo.</p>
+  <button class="btn secondary" style="width:100%" onclick="preencherTrembo()">Preencher Trembolona (14 dias)</button>
+ </div>
+
+ <div class="card">
+  <div class="card-head"><div><h2>🎛️ Preferências</h2><div class="kicker">Configurações de acompanhamento</div></div><div class="icon">⚙</div></div>
+  <label>Meta pessoal de potássio (mg), se definida pelo profissional</label><input type="number" id="metaPot" inputmode="numeric" placeholder="Opcional">
+  <button class="btn" style="width:100%;margin-top:12px" onclick="salvarPreferencias()">Salvar preferências</button>
+ </div>
+ <div class="card">
+  <div class="card-head"><div><h2>💾 Backup dos dados</h2><div class="kicker">Guarde uma cópia dos seus registros</div></div><div class="icon">⇅</div></div>
+  <div class="row"><button class="btn" onclick="exportar()">Exportar JSON</button><button class="btn secondary" onclick="document.getElementById('importar').click()">Importar</button></div>
+  <input type="file" id="importar" accept=".json,application/json" class="hide" onchange="importar(event)">
+ </div>
+ <div class="card">
+  <div class="info"><strong>Privacidade:</strong> os dados ficam no armazenamento local do navegador. A senha deste HTML é verificável por qualquer pessoa que inspecione o código; não use como proteção de informações sensíveis. Faça backups e proteja o aparelho.</div>
+  <button class="btn danger" style="width:100%;margin-top:14px" onclick="sair()">Sair do painel</button>
+ </div>
+</section>
+</div>
+</div>
+<div id="rodape"></div>
+
+<script>
+const CFG={login:"03252691221",senha:"314159",espiroDose:25,duraIntervalo:4,furoDias:[3,6]};
+const REMEDIOS=[
+ {id:"furo",nome:"Furosemida 40 mg",cor:"#ff7888",meiaVida:0.1},
+ {id:"espiro",nome:"Espironolactona 25 mg",cor:"#6ea8ff",meiaVida:0.7},
+ {id:"ana",nome:"Anastrozol 0,5 mg",cor:"#b69aff",meiaVida:2.0},
+ {id:"iso",nome:"Isotretinoína 20 mg",cor:"#ffc66e",meiaVida:0.8},
+ {id:"trembo",nome:"Trembolona 25 mg",cor:"#f4d35e",meiaVida:1.5},
+ {id:"dura",nome:"Durateston 250 mg",cor:"#47d7a0",meiaVida:7.0}
+];
+let estado={},abaAtual="dia",faceModelosProntos=false,intervaloAgua=null;
+const $=id=>document.getElementById(id);
+
+function hoje(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function diasEntre(a,b){return Math.round((new Date(b+"T12:00:00")-new Date(a+"T12:00:00"))/86400000)}
+function ehDiaFuro(){return CFG.furoDias.includes(new Date().getDay())}
+
+function carregar(){try{estado=JSON.parse(localStorage.getItem("prot")||"{}")}catch(e){estado={}}if(!estado.dias)estado.dias={};if(!estado.cfg)estado.cfg={};garantirDia()}
+function garantirDia(){if(!estado.dias[hoje()])estado.dias[hoje()]={remedios:{},cardio:null,agua:0};if(!estado.dias[hoje()].remedios)estado.dias[hoje()].remedios={};if(estado.dias[hoje()].agua==null)estado.dias[hoje()].agua=0}
+function salvar(){try{localStorage.setItem("prot",JSON.stringify(estado))}catch(e){aviso("Não foi possível salvar.")}}
+function aviso(t){const r=$("rodape");r.textContent=t;r.classList.add("show");clearTimeout(r._t);r._t=setTimeout(()=>r.classList.remove("show"),2600)}
+function entrar(){if($("lgUser").value.trim()===CFG.login&&$("lgPass").value===CFG.senha){localStorage.setItem("protSessao","1");$("login").classList.add("hide");$("app").classList.remove("hide");iniciar()}else $("lgErro").textContent="Login ou senha incorretos."}
+function sair(){localStorage.removeItem("protSessao");$("login").classList.remove("hide");$("app").classList.add("hide")}
+function iniciar(){carregar();const data=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"});$("dataHoje").textContent=data;$("dataHero").textContent=new Date().toLocaleDateString("pt-BR");renderTudo();if(estado.cfg.ultimaDura)$("ultimaDura").value=estado.cfg.ultimaDura}
+function aba(n,b){abaAtual=n;document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("on"));b.classList.add("on");["dia","hist","aj"].forEach(k=>$("aba"+k.charAt(0).toUpperCase()+k.slice(1)).classList.toggle("hide",k!==n));if(n==="hist")renderHistorico();if(n==="aj")renderAjustes()}
+function renderTudo(){garantirDia();renderRemedios();renderCardio();renderPotassio();renderPeso();renderAgua();renderResumo()}
+
+function renderAgua(){
+  const a = estado.dias[hoje()].agua || 0;
+  const meta = 5000;
+  $("aguaNum").innerHTML = `${a} <span style="font-size:14px;color:var(--muted)">ml</span>`;
+  $("aguaFalta").textContent = a >= meta ? "Meta batida! 🎉" : `Faltam ${meta - a} ml`;
+  const pct = Math.min(100, (a/meta)*100);
+  $("barraAgua").style.width = pct + "%";
+  $("barraAgua").style.background = a>=meta ? "var(--green)" : "linear-gradient(90deg,#6ea8ff,#55d6d0)";
+}
+
+function addAgua(ml){
+  garantirDia();
+  estado.dias[hoje()].agua = (estado.dias[hoje()].agua || 0) + ml;
+  salvar(); renderAgua(); renderResumo();
+  aviso(`+${ml} ml adicionados`);
+}
+
+function resetarAgua(){
+  if(!confirm("Zerar a água de hoje?")) return;
+  estado.dias[hoje()].agua = 0;
+  salvar(); renderAgua(); renderResumo();
+}
+
+function ativarLembretes(){
+  if(!("Notification" in window)){ aviso("Seu navegador não suporta notificações."); return; }
+  if(Notification.permission === "granted"){ iniciarTimerAgua(); return; }
+  Notification.requestPermission().then(permission => {
+    if(permission === "granted"){ iniciarTimerAgua(); } else { aviso("Permissão de notificação negada."); }
+  });
+}
+
+function iniciarTimerAgua(){
+  if(intervaloAgua) clearInterval(intervaloAgua);
+  aviso("Lembretes ativados (2h)");
+  $("lembreteStatus").textContent = "Lembretes ativados (a cada 2h)";
+  new Notification("Hora de beber água! 💧", { body: "Beba 300ml para chegar na meta de 5L." });
+  intervaloAgua = setInterval(() => {
+    if(Notification.permission === "granted"){
+      new Notification("Hora de beber água! 💧", { body: "Você já bebeu " + (estado.dias[hoje()].agua||0) + "ml hoje. Beba mais 300ml." });
+    }
+  }, 2 * 60 * 60 * 1000); 
+}
+
+function ultimoUso(id){return Object.keys(estado.dias).filter(x=>estado.dias[x].remedios&&estado.dias[x].remedios[id]).sort().pop()}
+
+function renderRemedios(){
+  const d=estado.dias[hoje()],box=$("remedios");box.innerHTML="";
+  REMEDIOS.forEach(r=>{
+    const feito=!!d.remedios[r.id],el=document.createElement("label");el.className="check-item";
+    let extra="";
+    if(r.id==="furo"&&!ehDiaFuro()) extra=" (só qua e sáb)";
+    if(r.id==="ana"){const ult=ultimoUso("ana");if(ult&&ult!==hoje()&&diasEntre(ult,hoje())<2)extra=" (hoje não é dia)";}
+    if(r.id==="dura"&&estado.cfg.ultimaDura){extra=estado.cfg.ultimaDura===hoje()?" (aplicada hoje)":"";}
+    
+    el.innerHTML=`<span class="status-dot ${feito?"done":""}"></span><span>${r.nome}${extra}<small>${feito?"Marcado como registrado hoje":"Toque para registrar"}</small></span><input type="checkbox" ${feito?"checked":""} aria-label="Registrar ${r.nome}">`;
+    el.querySelector("input").addEventListener("change",e=>marcarRemedio(r.id,e.target.checked));box.appendChild(el);
+  })
+}
+
+function marcarRemedio(id,ok){
+  garantirDia();
+  if(ok){
+    if(id==="furo"){
+      if(!ehDiaFuro()){aviso("Furo só qua e sáb");renderRemedios();return;}
+      const ult=ultimoUso("furo");if(ult&&ult!==hoje()&&diasEntre(ult,hoje())<2){aviso("Menos de 48h do último furo");renderRemedios();return;}
+    }
+    if(id==="ana"){const ult=ultimoUso("ana");if(ult&&ult!==hoje()&&diasEntre(ult,hoje())<2){aviso("Anastrozol é a cada 2 dias");renderRemedios();return;}}
+    if(id==="dura"&&estado.cfg.ultimaDura&&estado.cfg.ultimaDura!==hoje()){
+      const diff=diasEntre(estado.cfg.ultimaDura,hoje());if(diff<CFG.duraIntervalo){aviso("Dura: faltam "+(CFG.duraIntervalo-diff)+" dias");renderRemedios();return;}
+    }
+  }
+  const r=estado.dias[hoje()].remedios;
+  if(ok)r[id]=true;else delete r[id];
+  if(id==="dura"&&ok)estado.cfg.ultimaDura=hoje();
+  salvar();renderTudo();aviso(ok?"Registro adicionado":"Registro desmarcado")
+}
+
+function preencherTrembo(){
+  if(!confirm("Deseja marcar a Trembolona nos últimos 14 dias para alimentar o gráfico?")) return;
+  for(let i=0; i<14; i++){
+    let d = new Date(); d.setDate(d.getDate() - i);
+    let str = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+    if(!estado.dias[str]) estado.dias[str] = {remedios:{}, cardio:null, agua:0};
+    if(!estado.dias[str].remedios) estado.dias[str].remedios = {};
+    estado.dias[str].remedios.trembo = true;
+  }
+  salvar(); renderTudo(); renderHistorico(); aviso("Trembolona preenchida!");
+}
+
+function salvarVitais(){garantirDia();const d=estado.dias[hoje()];const p=$("peso").value.trim(),s=$("sis").value.trim(),di=$("dia").value.trim(),pot=$("potassio").value.trim();d.peso=p?Number(p):null;d.sis=s?Number(s):null;d.dia=di?Number(di):null;d.potassio=pot?Number(pot):null;salvar();renderTudo();aviso("Medidas salvas")}
+function renderPeso(){const d=estado.dias[hoje()];$("peso").value=d.peso??"";$("sis").value=d.sis??"";$("dia").value=d.dia??"";$("potassio").value=d.potassio??"";const ant=Object.keys(estado.dias).filter(x=>x<hoje()&&Number.isFinite(estado.dias[x].peso)).sort().slice(-3);$("pesoMedia").textContent=ant.length?"Média dos últimos "+ant.length+" registros anteriores: "+(ant.reduce((a,x)=>a+estado.dias[x].peso,0)/ant.length).toFixed(1)+" kg":""}
+function renderPotassio(){const d=estado.dias[hoje()],meta=Number(estado.cfg.metaPot),v=Number(d.potassio||0);$("potassioInfo").textContent=d.potassio==null?"Nenhum valor registrado hoje.":`${v.toLocaleString("pt-BR")} mg registrados`+(meta>0?` · referência pessoal: ${meta.toLocaleString("pt-BR")} mg`:"");}
+function registrarCardio(tipo){garantirDia();estado.dias[hoje()].cardio={tipo,hora:$("cardioHora").value,jejum:$("cardioJejum").value,motivo:tipo==="sem"?$("cardioMotivo").value:""};salvar();renderCardio();renderResumo();aviso("Cardio registrado")}
+function renderCardio(){const c=estado.dias[hoje()].cardio;$("cardioInfo").textContent=!c?"Nenhuma atividade registrada":(c.tipo==="sem"?"Sem cardio":c.tipo==="hiit"?"HIIT":"Ladeira")+(c.motivo?" · "+c.motivo:"")+(c.hora?" · "+c.hora:"")+(c.jejum==="sim"?" · em jejum":"");}
+function renderResumo(){const d=estado.dias[hoje()],total=REMEDIOS.length+5;let feitos=REMEDIOS.filter(r=>d.remedios[r.id]).length+(d.peso!=null?1:0)+(d.sis!=null&&d.dia!=null?1:0)+(d.potassio!=null?1:0)+(d.cardio?1:0)+(d.agua>0?1:0);const pct=Math.round(feitos/total*100);$("progressoHoje").textContent=pct+"%";$("barraNota").style.width=pct+"%";$("miniPeso").textContent=d.peso!=null?d.peso.toFixed(1)+" kg":"—";$("miniPressao").textContent=d.sis&&d.dia?d.sis+"/"+d.dia:"—";$("miniPot").textContent=d.potassio!=null?Number(d.potassio).toLocaleString("pt-BR"):"—";$("miniCardio").textContent=!d.cardio?"—":d.cardio.tipo==="sem"?"Não":d.cardio.tipo==="hiit"?"HIIT":"Ladeira"}
+
+async function carregarModelosFace(){
+  if(faceModelosProntos) return true;
+  try {
+    const uri = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js-models@master/';
+    await faceapi.nets.tinyFaceDetector.loadFromUri(uri + 'tiny_face_detector');
+    await faceapi.nets.faceLandmark68Net.loadFromUri(uri + 'face_landmark_68');
+    faceModelosProntos = true; return true;
+  } catch(e){ console.warn(e); return false; }
+}
+
+async function carregarFoto(e){
+  const f=e.target.files[0];if(!f)return;if(!f.type.startsWith("image/")){aviso("Selecione uma imagem válida");return}
+  const url=URL.createObjectURL(f),img=new Image();
+  img.onload=async()=>{
+    const c=$("canvas"),ctx=c.getContext("2d"),side=Math.min(img.width,img.height),sx=(img.width-side)/2,sy=(img.height-side)/2;
+    ctx.clearRect(0,0,300,300);ctx.drawImage(img,sx,sy,side,side,0,0,300,300);c.classList.remove("hide");
+    const ok = await carregarModelosFace(); let maxilar = null;
+    if(ok){
+      try {
+        const det = await faceapi.detectSingleFace(c, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })).withFaceLandmarks();
+        if(det && det.landmarks){
+          const pts = det.landmarks.positions, p3 = pts[3], p13 = pts[13], dx = p3.x - p13.x, dy = p3.y - p13.y;
+          maxilar = Math.round(Math.sqrt(dx*dx + dy*dy)); ctx.fillStyle = "#22c55e";
+          for(let i=2;i<=14;i++){ const p = pts[i]; ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI*2); ctx.fill(); }
+        }
+      } catch(err){ console.warn(err); }
+    }
+    garantirDia();
+    estado.dias[hoje()].foto=true; estado.dias[hoje()].maxilar=maxilar; salvar();
+    $("fotoResultado").textContent = maxilar ? "Foto registrada. Largura do maxilar: "+maxilar+" px (landmarks)." : "Foto registrada. Rosto não detectado (tente de frente e com luz).";
+    renderHistorico(); URL.revokeObjectURL(url);
+  };
+  img.onerror=()=>aviso("Não foi possível abrir a imagem");img.src=url;e.target.value=""
+}
+
+function gerarRelatorio(){
+  const d=estado.dias[hoje()],L=["RELATÓRIO PESSOAL — "+new Date().toLocaleDateString("pt-BR"),"Peso: "+(d.peso!=null?d.peso+" kg":"não registrado"),"Pressão: "+(d.sis&&d.dia?d.sis+"/"+d.dia+" mmHg":"não registrada"),"Potássio informado: "+(d.potassio!=null?d.potassio+" mg":"não registrado"),"Água ingerida: "+(d.agua||0)+" ml","Cardio: "+(!d.cardio?"não registrado":d.cardio.tipo==="sem"?"sem cardio"+(d.cardio.motivo?" ("+d.cardio.motivo+")":""):d.cardio.tipo+(d.cardio.hora?" · "+d.cardio.hora:"")), "Medicamentos marcados: "+REMEDIOS.filter(r=>d.remedios[r.id]).map(r=>r.nome).join(", ")];
+  if(d.maxilar) L.push("Medida maxilar: "+d.maxilar+" px");
+  $("relatorio").textContent=L.join("\n");$("relatorio").classList.remove("hide")
+}
+async function copiarRelatorio(){if(!$("relatorio").textContent)gerarRelatorio();try{await navigator.clipboard.writeText($("relatorio").textContent);aviso("Relatório copiado")}catch(e){aviso("Não foi possível copiar")}}
+
+function renderHistorico(){
+  renderGraficoPeso();renderEmpilhamento();
+  const box=$("historico");box.innerHTML="";const dias=Object.keys(estado.dias).sort().reverse().slice(0,14);
+  if(!dias.length){box.textContent="Sem registros ainda.";return}
+  const ul=document.createElement("ul");ul.className="list";
+  dias.forEach(k=>{
+    const d=estado.dias[k],el=document.createElement("li");
+    const left=document.createElement("span");left.textContent=new Date(k+"T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"short"});
+    let txt=[d.peso!=null?d.peso+" kg":null,d.sis&&d.dia?d.sis+"/"+d.dia:null,d.agua?(d.agua+" ml"):null,d.cardio?(d.cardio.tipo==="sem"?"Sem cardio":d.cardio.tipo.toUpperCase()):null];
+    if(d.maxilar) txt.push("max "+d.maxilar+"px");
+    const right=document.createElement("span");right.textContent=txt.filter(Boolean).join(" · ")||"Sem medidas";
+    el.append(left,right);ul.appendChild(el);
+  });
+  box.appendChild(ul);
+}
+
+function renderGraficoPeso(){
+  const c=$("grafPeso"),ctx=c.getContext("2d"),W=c.width,H=c.height;ctx.clearRect(0,0,W,H);
+  const dias=Object.keys(estado.dias).sort().filter(k=>Number.isFinite(estado.dias[k].peso)).slice(-14);
+  ctx.font="16px system-ui";ctx.fillStyle="#91a3bd";ctx.textAlign="center";
+  if(dias.length<2){ctx.fillText("Registre pelo menos dois pesos",W/2,H/2);return}
+  const vals=dias.map(k=>estado.dias[k].peso),min=Math.min(...vals)-.5,max=Math.max(...vals)+.5,pad=48,xs=(W-2*pad)/(dias.length-1),ys=(H-2*pad)/(max-min);
+  ctx.strokeStyle="#293b55";ctx.lineWidth=1;for(let i=0;i<4;i++){let y=pad+i*(H-2*pad)/3;ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(W-pad,y);ctx.stroke()}
+  ctx.beginPath();dias.forEach((k,i)=>{let x=pad+i*xs,y=H-pad-(estado.dias[k].peso-min)*ys;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+  ctx.strokeStyle="#6ea8ff";ctx.lineWidth=4;ctx.lineJoin="round";ctx.stroke();
+  dias.forEach((k,i)=>{let x=pad+i*xs,y=H-pad-(estado.dias[k].peso-min)*ys;ctx.beginPath();ctx.arc(x,y,6,0,Math.PI*2);ctx.fillStyle="#55d6d0";ctx.fill();ctx.fillStyle="#edf4ff";ctx.font="12px system-ui";ctx.fillText(vals[i].toFixed(1),x,y-13)});
+  ctx.fillStyle="#91a3bd";ctx.font="12px system-ui";ctx.textAlign="left";ctx.fillText(dias[0].slice(5),pad,H-13);ctx.textAlign="right";ctx.fillText(dias[dias.length-1].slice(5),W-pad,H-13)
+}
+
+function renderEmpilhamento(){
+  const box=$("graficosEmpilhamento");box.innerHTML="";
+  let datas=[];for(let i=13;i>=0;i--){let d=new Date();d.setDate(d.getDate()-i);datas.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"))}
+  
+  REMEDIOS.forEach(rem=>{
+    const decaimento = Math.pow(0.5, 1/rem.meiaVida);
+    let nivelAtual = 0, niveis = [];
+    datas.forEach(k=>{
+      const tomou = !!(estado.dias[k] && estado.dias[k].remedios && estado.dias[k].remedios[rem.id]);
+      nivelAtual = (nivelAtual * decaimento) + (tomou ? 1 : 0);
+      niveis.push({data:k, nivel:nivelAtual, tomou});
+    });
+    const nivelHoje = niveis[niveis.length-1].nivel, maxNivel = Math.max(...niveis.map(n=>n.nivel), 1.0);
+    const wrap=document.createElement("div");wrap.className="chart-wrap";
+    const title=document.createElement("div");title.className="chart-title";
+    title.innerHTML = `<span style="color:${rem.cor}">${rem.nome}</span> <span style="color:#91a3bd;font-size:11px">Nível: ${nivelHoje.toFixed(2)} doses</span>`;
+    const c=document.createElement("canvas");c.className="chart mini-chart";c.width=700;c.height=140;
+    wrap.append(title,c);box.append(wrap);
+    const ctx=c.getContext("2d"),W=c.width,H=c.height,padX=22,padY=20;
+    const step=(W-padX*2)/(datas.length-1);
+    ctx.strokeStyle="#293b55";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(padX,H-padY);ctx.lineTo(W-padX,H-padY);ctx.stroke();
+    ctx.strokeStyle=rem.cor;ctx.lineWidth=3;ctx.beginPath();
+    niveis.forEach((n,i)=>{const x=padX+i*step,y=H-padY - (n.nivel/maxNivel)*(H-padY*2);if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);});
+    ctx.stroke();
+    ctx.lineTo(W-padX,H-padY);ctx.lineTo(padX,H-padY);ctx.closePath();ctx.fillStyle=rem.cor+"33";ctx.fill();
+    niveis.forEach((n,i)=>{if(n.tomou){const x=padX+i*step,y=H-padY - (n.nivel/maxNivel)*(H-padY*2);ctx.beginPath();ctx.arc(x,y,5,0,Math.PI*2);ctx.fillStyle=rem.cor;ctx.fill();}});
+    ctx.fillStyle="#91a3bd";ctx.font="12px system-ui";ctx.textAlign="left";ctx.fillText(datas[0].slice(5),padX,H-4);ctx.textAlign="right";ctx.fillText(datas[datas.length-1].slice(5),W-padX,H-4);
+  });
+}
+
+function renderAjustes(){$("ultimaDura").value=estado.cfg.ultimaDura||"";$("duraInfo").textContent=estado.cfg.ultimaDura?"Data registrada: "+new Date(estado.cfg.ultimaDura+"T12:00:00").toLocaleDateString("pt-BR"):"Nenhuma data registrada.";$("metaPot").value=estado.cfg.metaPot||""}
+function salvarDura(){estado.cfg.ultimaDura=$("ultimaDura").value;salvar();renderAjustes();aviso("Data salva")}
+function salvarPreferencias(){const v=Number($("metaPot").value);if($("metaPot").value&&(!Number.isFinite(v)||v<=0)){aviso("Informe um valor válido");return}estado.cfg.metaPot=v||null;salvar();renderPotassio();aviso("Preferências salvas")}
+function exportar(){const blob=new Blob([JSON.stringify(estado,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="protocolo-backup-"+hoje()+".json";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);aviso("Backup exportado")}
+function importar(e){const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=()=>{try{const data=JSON.parse(reader.result);if(!data||typeof data!=="object"||!data.dias||typeof data.dias!=="object")throw Error();estado=data;if(!estado.cfg)estado.cfg={};garantirDia();salvar();renderTudo();if(abaAtual==="hist")renderHistorico();if(abaAtual==="aj")renderAjustes();aviso("Backup importado")}catch(err){aviso("Arquivo JSON inválido")}};reader.readAsText(f);e.target.value=""}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!$("app").classList.contains("hide")){garantirDia();renderTudo()}});
+if(localStorage.getItem("protSessao")==="1"){$("login").classList.add("hide");$("app").classList.remove("hide");iniciar()}
+</script>
+</body>
+</html>
