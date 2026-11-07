@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Protocolo</title>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.7.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#0f172a;color:#e2e8f0;padding:12px;font-size:15px}
+h1{font-size:19px;margin:0 0 4px}
+.sub{color:#94a3b8;font-size:12px;margin-bottom:14px}
+.card{background:#1e293b;border-radius:12px;padding:14px;margin-bottom:12px;border:1px solid #334155}
+.card h2{font-size:14px;margin:0 0 10px;color:#cbd5e1;text-transform:uppercase;letter-spacing:.5px}
+label{display:block;font-size:12px;color:#94a3b8;margin:8px 0 4px}
+input,select,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:15px;font-family:inherit}
+button{padding:11px 14px;border-radius:8px;border:none;background:#2563eb;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+button.sec{background:#334155}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>*{flex:1;min-width:0}
+.nota{font-size:44px;font-weight:800;line-height:1}
+.sit{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.ok{color:#22c55e}.at{color:#f59e0b}.al{color:#ef4444}
+.barra{height:8px;background:#334155;border-radius:4px;overflow:hidden;margin:8px 0}
+.barra>div{height:100%;background:#22c55e;transition:width .3s}
+ul.lista{list-style:none;padding:0;margin:0;font-size:13px}
+ul.lista li{padding:6px 0;border-bottom:1px solid #334155}
+.chk{display:flex;align-items:center;gap:8px;padding:7px 0;font-size:13px}
+.chk input{width:18px;height:18px;flex:none}
+.hide{display:none!important}
+#rodape{position:fixed;bottom:0;left:0;right:0;background:#1e293b;border-top:1px solid #334155;padding:10px;font-size:12px;color:#94a3b8;transform:translateY(100%);transition:transform .2s;z-index:50;text-align:center}
+#rodape.show{transform:translateY(0)}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <h1>Protocolo</h1>
+  <p class="sub" id="dataHoje"></p>
+
+  <div class="card">
+    <h2>Análise do dia</h2>
+    <div style="display:flex;align-items:center;gap:14px">
+      <div class="nota" id="nota">--</div>
+      <div style="flex:1">
+        <div class="sit" id="situacao">—</div>
+        <div class="barra"><div id="barraNota" style="width:0%"></div></div>
+      </div>
+    </div>
+    <ul class="lista" id="motivos" style="margin-top:10px"></ul>
+  </div>
+
+  <div class="card">
+    <h2>Peso e pressão</h2>
+    <div class="row">
+      <div><label>Peso (kg)</label><input id="peso" type="number" step="0.1" inputmode="decimal"></div>
+      <div><label>Sistólica</label><input id="sis" type="number" inputmode="numeric"></div>
+      <div><label>Diastólica</label><input id="dia" type="number" inputmode="numeric"></div>
+    </div>
+    <button style="margin-top:10px" onclick="salvarVitais()">Salvar</button>
+  </div>
+
+  <div class="card">
+    <h2>Remédios</h2>
+    <div id="remedios"></div>
+  </div>
+
+  <div class="card">
+    <h2>Potássio</h2>
+    <label>Potássio (mg)</label>
+    <input id="potassio" type="number" inputmode="numeric" oninput="salvarPotassio()">
+    <p class="sub" id="potassioInfo" style="margin:8px 0 0"></p>
+    <div class="barra"><div id="barraPot" style="width:0%"></div></div>
+  </div>
+
+  <div class="card">
+    <h2>Sintomas</h2>
+    <div id="sintomas"></div>
+  </div>
+</div>
+
+<div id="rodape"></div>
+
+<script>
+const REMEDIOS = [
+  {id:"furo",  nome:"Furosemida 40 mg"},
+  {id:"espiro",nome:"Espironolactona"},
+  {id:"ana",   nome:"Anastrozol 0,5 mg"},
+  {id:"iso",   nome:"Isotretinoína 20 mg"},
+  {id:"trembo",nome:"Trembolona 0,25 mg"},
+  {id:"dura",  nome:"Durateston"}
+];
+const SINTOMAS = ["rosto piorou","rosto desinchou","cãibra","fraqueza","tontura","dor articular","pele seca"];
+
+let estado = JSON.parse(localStorage.getItem("prot") || '{"dias":{}}');
+let hoje = new Date().toISOString().split('T')[0];
+
+if(!estado.dias[hoje]) estado.dias[hoje] = { remedios:{}, sintomas:[] };
+let d = estado.dias[hoje];
+
+function salvar(){ localStorage.setItem("prot", JSON.stringify(estado)); }
+function aviso(t){ const r=document.getElementById("rodape"); r.textContent=t; r.classList.add("show"); setTimeout(()=>r.classList.remove("show"), 2500); }
+
+function render(){
+  document.getElementById("dataHoje").textContent = new Date().toLocaleDateString("pt-BR");
+  
+  // Remédios
+  const boxR = document.getElementById("remedios");
+  boxR.innerHTML = "";
+  REMEDIOS.forEach(r => {
+    const div = document.createElement("div");
+    div.className = "chk";
+    div.innerHTML = `<input type="checkbox" ${d.remedios[r.id]?"checked":""} onchange="marcarR('${r.id}',this.checked)"><span>${r.nome}</span>`;
+    boxR.appendChild(div);
+  });
+
+  // Sintomas
+  const boxS = document.getElementById("sintomas");
+  boxS.innerHTML = "";
+  SINTOMAS.forEach(s => {
+    const div = document.createElement("div");
+    div.className = "chk";
+    div.innerHTML = `<input type="checkbox" ${d.sintomas.includes(s)?"checked":""} onchange="marcarS('${s}',this.checked)"><span>${s}</span>`;
+    boxS.appendChild(div);
+  });
+
+  // Potássio
+  document.getElementById("potassio").value = d.potassio || "";
+  let meta = 3500;
+  let ing = d.potassio || 0;
+  document.getElementById("potassioInfo").textContent = `${ing} / ${meta} mg`;
+  const bp = document.getElementById("barraPot");
+  bp.style.width = Math.min(100, ing/meta*100) + "%";
+  bp.style.background = ing >= meta ? "#22c55e" : "#f59e0b";
+
+  // Nota
+  let nota = 100; let motivos = [];
+  if(ing < meta) { nota -= 25; motivos.push("Potássio abaixo da meta"); }
+  if(d.sis >= 140) { nota -= 15; motivos.push("Pressão alta"); }
+  if(!d.peso) motivos.push("Peso não registrado");
+  
+  nota = Math.max(0, nota);
+  let sit = nota >= 80 ? ["Em dia","ok"] : nota >= 50 ? ["Atenção","at"] : ["Alerta","al"];
+  document.getElementById("nota").textContent = nota;
+  document.getElementById("nota").className = "nota " + sit[1];
+  document.getElementById("situacao").textContent = sit[0];
+  document.getElementById("situacao").className = "sit " + sit[1];
+  document.getElementById("barraNota").style.width = nota + "%";
+  document.getElementById("barraNota").style.background = sit[1]==="ok"?"#22c55e":sit[1]==="at"?"#f59e0b":"#ef4444";
+
+  const ul = document.getElementById("motivos");
+  ul.innerHTML = "";
+  if(!motivos.length) motivos.push("Tudo em ordem");
+  motivos.forEach(m => { ul.innerHTML += `<li>${m}</li>`; });
+}
+
+function marcarR(id, ok){ if(ok) d.remedios[id]=true; else delete d.remedios[id]; salvar(); }
+function marcarS(s, ok){ if(ok && !d.sintomas.includes(s)) d.sintomas.push(s); if(!ok) d.sintomas=d.sintomas.filter(x=>x!==s); salvar(); render(); }
+
+function salvarVitais(){
+  d.peso = parseFloat(document.getElementById("peso").value) || null;
+  d.sis = parseInt(document.getElementById("sis").value) || null;
+  d.dia = parseInt(document.getElementById("dia").value) || null;
+  salvar(); render(); aviso("Salvo!");
+}
+
+function salvarPotassio(){
+  d.potassio = parseInt(document.getElementById("potassio").value) || 0;
+  salvar(); render();
+}
+
+render();
+</script>
+</body>
+</html>
