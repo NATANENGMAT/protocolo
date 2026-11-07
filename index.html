@@ -182,7 +182,6 @@ input[type=file]{font-size:12px;padding:10px}
   <div class="row"><button class="btn" onclick="gerarRelatorio()">Gerar relatório</button><button class="btn secondary" onclick="copiarRelatorio()">Copiar</button></div>
   <div class="mono hide" id="relatorio" style="margin-top:12px"></div>
  </div>
- <div class="bottom-note">Os registros são armazenados neste dispositivo.</div>
 </section>
 
 <section id="abaHist" class="hide">
@@ -191,7 +190,7 @@ input[type=file]{font-size:12px;padding:10px}
   <canvas id="grafPeso" class="chart" width="700" height="260"></canvas>
  </div>
  <div class="card">
-  <div class="card-head"><div><h2>💊 Empilhamento (Meia-vida)</h2><div class="kicker">Nível acumulado de cada medicamento no corpo</div></div><div class="icon">▥</div></div>
+  <div class="card-head"><div><h2>💊 Empilhamento (Meia-vida)</h2><div class="kicker">Nível acumulado de cada medicamento no corpo (em mg)</div></div><div class="icon">▥</div></div>
   <div id="graficosEmpilhamento"></div>
  </div>
  <div class="card">
@@ -210,8 +209,9 @@ input[type=file]{font-size:12px;padding:10px}
  
  <div class="card">
   <div class="card-head"><div><h2>⚡ Atalhos de Preenchimento</h2><div class="kicker">Alimente o gráfico de empilhamento</div></div><div class="icon">✨</div></div>
-  <p class="sub" style="margin-bottom:12px">Use o botão abaixo para marcar automaticamente a Trembolona nos últimos 14 dias, preenchendo a curva do gráfico de acúmulo.</p>
-  <button class="btn secondary" style="width:100%" onclick="preencherTrembo()">Preencher Trembolona (14 dias)</button>
+  <p class="sub" style="margin-bottom:12px">Preencha os últimos 14 dias para ver a curva de acúmulo no gráfico.</p>
+  <button class="btn secondary" style="width:100%;margin-bottom:8px" onclick="preencherTrembo()">Preencher Trembolona (14 dias)</button>
+  <button class="btn secondary" style="width:100%" onclick="preencherDura()">Preencher Dura (25/10, 29/10 e 03/11)</button>
  </div>
 
  <div class="card">
@@ -236,12 +236,12 @@ input[type=file]{font-size:12px;padding:10px}
 <script>
 const CFG={login:"03252691221",senha:"314159",espiroDose:25,duraIntervalo:4,furoDias:[3,6]};
 const REMEDIOS=[
- {id:"furo",nome:"Furosemida 40 mg",cor:"#ff7888",meiaVida:0.1},
- {id:"espiro",nome:"Espironolactona 25 mg",cor:"#6ea8ff",meiaVida:0.7},
- {id:"ana",nome:"Anastrozol 0,5 mg",cor:"#b69aff",meiaVida:2.0},
- {id:"iso",nome:"Isotretinoína 20 mg",cor:"#ffc66e",meiaVida:0.8},
- {id:"trembo",nome:"Trembolona 25 mg",cor:"#f4d35e",meiaVida:1.5},
- {id:"dura",nome:"Durateston 250 mg",cor:"#47d7a0",meiaVida:7.0}
+ {id:"furo",nome:"Furosemida 40 mg",cor:"#ff7888",meiaVida:0.1,dose:40},
+ {id:"espiro",nome:"Espironolactona 25 mg",cor:"#6ea8ff",meiaVida:0.7,dose:25},
+ {id:"ana",nome:"Anastrozol 0,5 mg",cor:"#b69aff",meiaVida:2.0,dose:0.5},
+ {id:"iso",nome:"Isotretinoína 20 mg",cor:"#ffc66e",meiaVida:0.8,dose:20},
+ {id:"trembo",nome:"Trembolona 25 mg",cor:"#f4d35e",meiaVida:1.5,dose:25},
+ {id:"dura",nome:"Durateston 250 mg",cor:"#47d7a0",meiaVida:7.0,dose:250}
 ];
 let estado={},abaAtual="dia",faceModelosProntos=false,intervaloAgua=null;
 const $=id=>document.getElementById(id);
@@ -331,6 +331,7 @@ function marcarRemedio(id,ok){
       const diff=diasEntre(estado.cfg.ultimaDura,hoje());if(diff<CFG.duraIntervalo){aviso("Dura: faltam "+(CFG.duraIntervalo-diff)+" dias");renderRemedios();return;}
     }
   }
+  
   const r=estado.dias[hoje()].remedios;
   if(ok)r[id]=true;else delete r[id];
   if(id==="dura"&&ok)estado.cfg.ultimaDura=hoje();
@@ -347,6 +348,22 @@ function preencherTrembo(){
     estado.dias[str].remedios.trembo = true;
   }
   salvar(); renderTudo(); renderHistorico(); aviso("Trembolona preenchida!");
+}
+
+function preencherDura(){
+  if(!confirm("Deseja marcar a Dura nos dias 25/10, 29/10 e 03/11?")) return;
+  const ano = new Date().getFullYear();
+  const datas = [`${ano}-10-25`, `${ano}-10-29`, `${ano}-11-03`];
+  
+  datas.forEach(str => {
+    if(!estado.dias[str]) estado.dias[str] = {remedios:{}, cardio:null, agua:0};
+    if(!estado.dias[str].remedios) estado.dias[str].remedios = {};
+    estado.dias[str].remedios.dura = true;
+  });
+  
+  estado.cfg.ultimaDura = `${ano}-11-03`;
+  
+  salvar(); renderTudo(); renderHistorico(); aviso("Dura preenchida (25/10, 29/10 e 03/11)!");
 }
 
 function salvarVitais(){garantirDia();const d=estado.dias[hoje()];const p=$("peso").value.trim(),s=$("sis").value.trim(),di=$("dia").value.trim(),pot=$("potassio").value.trim();d.peso=p?Number(p):null;d.sis=s?Number(s):null;d.dia=di?Number(di):null;d.potassio=pot?Number(pot):null;salvar();renderTudo();aviso("Medidas salvas")}
@@ -436,24 +453,66 @@ function renderEmpilhamento(){
     let nivelAtual = 0, niveis = [];
     datas.forEach(k=>{
       const tomou = !!(estado.dias[k] && estado.dias[k].remedios && estado.dias[k].remedios[rem.id]);
-      nivelAtual = (nivelAtual * decaimento) + (tomou ? 1 : 0);
+      nivelAtual = (nivelAtual * decaimento) + (tomou ? rem.dose : 0);
       niveis.push({data:k, nivel:nivelAtual, tomou});
     });
-    const nivelHoje = niveis[niveis.length-1].nivel, maxNivel = Math.max(...niveis.map(n=>n.nivel), 1.0);
+    
+    const nivelHoje = niveis[niveis.length-1].nivel;
+    const maxNivel = Math.max(...niveis.map(n=>n.nivel), rem.dose);
+    
     const wrap=document.createElement("div");wrap.className="chart-wrap";
     const title=document.createElement("div");title.className="chart-title";
-    title.innerHTML = `<span style="color:${rem.cor}">${rem.nome}</span> <span style="color:#91a3bd;font-size:11px">Nível: ${nivelHoje.toFixed(2)} doses</span>`;
-    const c=document.createElement("canvas");c.className="chart mini-chart";c.width=700;c.height=140;
+    title.innerHTML = `<span style="color:${rem.cor}">${rem.nome}</span> <span style="color:#91a3bd;font-size:11px">Nível: ${nivelHoje.toFixed(1)} mg</span>`;
+    
+    const c=document.createElement("canvas");c.className="chart mini-chart";c.width=700;c.height=160;
     wrap.append(title,c);box.append(wrap);
+    
     const ctx=c.getContext("2d"),W=c.width,H=c.height,padX=22,padY=20;
     const step=(W-padX*2)/(datas.length-1);
+    
+    // Eixo base
     ctx.strokeStyle="#293b55";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(padX,H-padY);ctx.lineTo(W-padX,H-padY);ctx.stroke();
-    ctx.strokeStyle=rem.cor;ctx.lineWidth=3;ctx.beginPath();
-    niveis.forEach((n,i)=>{const x=padX+i*step,y=H-padY - (n.nivel/maxNivel)*(H-padY*2);if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);});
-    ctx.stroke();
-    ctx.lineTo(W-padX,H-padY);ctx.lineTo(padX,H-padY);ctx.closePath();ctx.fillStyle=rem.cor+"33";ctx.fill();
-    niveis.forEach((n,i)=>{if(n.tomou){const x=padX+i*step,y=H-padY - (n.nivel/maxNivel)*(H-padY*2);ctx.beginPath();ctx.arc(x,y,5,0,Math.PI*2);ctx.fillStyle=rem.cor;ctx.fill();}});
-    ctx.fillStyle="#91a3bd";ctx.font="12px system-ui";ctx.textAlign="left";ctx.fillText(datas[0].slice(5),padX,H-4);ctx.textAlign="right";ctx.fillText(datas[datas.length-1].slice(5),W-padX,H-4);
+    
+    // Gráfico de Barras
+    const barWidth = (W - padX*2) / datas.length * 0.7;
+    
+    niveis.forEach((n, i) => {
+      const x = padX + i * step;
+      const barHeight = (n.nivel / maxNivel) * (H - padY*2);
+      const y = H - padY - barHeight;
+      
+      const grad = ctx.createLinearGradient(0, H-padY, 0, y);
+      grad.addColorStop(0, rem.cor + "44");
+      grad.addColorStop(1, rem.cor);
+      
+      ctx.fillStyle = grad;
+      ctx.fillRect(x - barWidth/2, y, barWidth, barHeight);
+      
+      ctx.beginPath();
+      ctx.arc(x, y, barWidth/2, Math.PI, 0);
+      ctx.fill();
+      
+      if(n.tomou){
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI*2);
+        ctx.fillStyle = "#fff";
+        ctx.fill();
+      }
+    });
+    
+    ctx.fillStyle="#91a3bd";ctx.font="11px system-ui";ctx.textAlign="center";
+    niveis.forEach((n, i) => {
+        const x = padX + i * step;
+        const dataFormatada = n.data.slice(8, 10) + "/" + n.data.slice(5, 7);
+        ctx.save();
+        ctx.translate(x, H - 4);
+        ctx.rotate(-Math.PI / 4); 
+        ctx.fillText(dataFormatada, 0, 0);
+        ctx.restore();
+    });
+    
+    ctx.fillStyle="#91a3bd";ctx.font="11px system-ui";ctx.textAlign="right";
+    ctx.fillText(maxNivel.toFixed(0)+" mg", W-padX, 15);
   });
 }
 
